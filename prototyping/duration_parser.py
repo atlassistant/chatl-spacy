@@ -7,8 +7,8 @@ from pprint import pprint
 grammar = r"""
 YEAR: /a(ns?)?/i
 MONTH: /m(ois)?/i
-WEEK.1: /semaines?/i
-DAY: /j(ours?)?/i
+WEEK.1: /sem(aines?)?/i
+DAY: /j(our(née)?s?)?/i
 HOUR: /h(eures?)?/i
 MINUTE: /(minutes?|mn)/i
 SECOND.0: /s(econdes?)?/i
@@ -16,15 +16,40 @@ QUARTER: /quarts?/i
 HALF: /demi/i
 _ARTICLE: /d['e]/i
 _CONJUCTION: /(et|\,)/i
-integral_numeral: /\d+/
+ZERO: /z(e|é)ro/i
+ONE: /un(e)/i
+TWO: /(deux|couple)/i
+THREE: /trois/i
+FOUR: /quatre/i
+FIVE: /cinq/i
+SIX: /six/i
+SEVEN: /sept/i
+EIGHT: /huit/i
+NINE: /neuf/i
+TEN: /di(x|zaines?)/i
+ELEVEN: /onze/i
+TWELVE: /douz(e|aines?)/i
+THIRTEEN: /treize/i
+FOURTEEN: /quatorze/i
+FIFTEEN: /quinz(e|aine)s?/i
+SIXTEEN: /seize/i
+TWENTY: /vingt(aine?)s?/i
+THIRTY: /trent(e|aine)s?/i
+FOURTY: /quarant(e|aine)s?/i
+FIFTY: /cinquant(e|aine)s?/i
+SIXTY: /soixant(e|aine)s?/i
+HUNDRED: /cent(aine)?s?/i
+THOUSAND: /mill(e|ier)s?/i
+number_letter: ZERO | ONE | TWO | THREE | FOUR | FIVE | SIX | SEVEN | EIGHT | NINE | TEN | ELEVEN | TWELVE | THIRTEEN | FOURTEEN | FIFTEEN | SIXTEEN | TWENTY | THIRTY | FOURTY | FIFTY | SIXTY | HUNDRED | THOUSAND
+number_digit: /\d+/
 fraction: QUARTER | HALF
 unit: YEAR | MONTH | WEEK | DAY | HOUR | MINUTE | SECOND
-interval_part: integral_numeral unit
-interval_and_integral_numeral: interval_part integral_numeral
-fractional_interval: integral_numeral fraction _ARTICLE? unit
+interval_part: number_digit unit
+interval_and_number: interval_part number_digit
+fractional_interval: number_digit fraction _ARTICLE? unit
 full_interval: interval_part (_CONJUCTION? interval_part)*
 interval_and_fraction: interval_part _CONJUCTION fraction
-start: fractional_interval | interval_and_fraction | interval_and_integral_numeral | full_interval
+start: fractional_interval | interval_and_fraction | interval_and_number | full_interval
 %import common.WS
 %ignore WS
 """
@@ -59,7 +84,7 @@ class DurationTransformer(Transformer):
         }
         return FRACTION_TO_VALUE[f] if f in FRACTION_TO_VALUE else None
     
-    def integral_numeral(self,t):
+    def number_digit(self,t):
         (v,) = t
         return  int(v.value)
     def fraction(self,t):
