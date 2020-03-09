@@ -33,20 +33,23 @@ THIRTEEN: /treize/i
 FOURTEEN: /quatorze/i
 FIFTEEN: /quinz(e|aine)s?/i
 SIXTEEN: /seize/i
-TWENTY: /vingt(aine?)s?/i
+TWENTY: /vingt(aine)?s?/i
 THIRTY: /trent(e|aine)s?/i
 FOURTY: /quarant(e|aine)s?/i
 FIFTY: /cinquant(e|aine)s?/i
 SIXTY: /soixant(e|aine)s?/i
 HUNDRED: /cent(aine)?s?/i
 THOUSAND: /mill(e|ier)s?/i
-number_letter: ZERO | ONE | TWO | THREE | FOUR | FIVE | SIX | SEVEN | EIGHT | NINE | TEN | ELEVEN | TWELVE | THIRTEEN | FOURTEEN | FIFTEEN | SIXTEEN | TWENTY | THIRTY | FOURTY | FIFTY | SIXTY | HUNDRED | THOUSAND
+digit_letter: ZERO | ONE | TWO | THREE | FOUR | FIVE | SIX | SEVEN | EIGHT | NINE | TEN | ELEVEN | TWELVE | THIRTEEN | FOURTEEN | FIFTEEN | SIXTEEN | THIRTY | FOURTY | FIFTY | SIXTY
+basis_letter:   TWENTY | HUNDRED | THOUSAND
 number_digit: /\d+/
 fraction: QUARTER | HALF
 unit: YEAR | MONTH | WEEK | DAY | HOUR | MINUTE | SECOND
-interval_part: number_digit unit
-interval_and_number: interval_part number_digit
-fractional_interval: number_digit fraction _ARTICLE? unit
+number_letter: (digit_letter? basis_letter)+ digit_letter? | digit_letter
+number: number_digit | number_letter
+interval_part: number unit
+interval_and_number: interval_part number
+fractional_interval: number fraction _ARTICLE? unit
 full_interval: interval_part (_CONJUCTION? interval_part)*
 interval_and_fraction: interval_part _CONJUCTION fraction
 start: fractional_interval | interval_and_fraction | interval_and_number | full_interval
@@ -83,10 +86,48 @@ class DurationTransformer(Transformer):
             "HALF":0.5,
         }
         return FRACTION_TO_VALUE[f] if f in FRACTION_TO_VALUE else None
+
+    def numberLetterToValue(self, n):
+        NUMBER_LETTER_TO_VALUE={
+            "ZERO": 0,
+            "ONE": 1,
+            "TWO": 2,
+            "THREE": 3,
+            "FOUR": 4,
+            "FIVE": 5,
+            "SIX": 6,
+            "SEVEN": 7,
+            "EIGHT": 8,
+            "NINE": 9,
+            "TEN": 10,
+            "ELEVEN": 11,
+            "TWELVE": 12,
+            "THIRTEEN": 13,
+            "FOURTEEN": 14,
+            "FIFTEEN": 15,
+            "SIXTEEN": 16,
+            "TWENTY": 20,
+            "THIRTY": 30,
+            "FOURTY": 40,
+            "FIFTY": 50,
+            "SIXTY": 60,
+            "HUNDRED": 100,
+            "THOUSAND": 1000,
+        }
+        return NUMBER_LETTER_TO_VALUE[n] if n in NUMBER_LETTER_TO_VALUE else None
     
     def number_digit(self,t):
         (v,) = t
         return  int(v.value)
+
+    def digit_letter(self,t):
+        (l,)=t
+        return (False,self.numberLetterToValue(l.type))
+
+    def basis_letter(self,t):
+        (l,)=t
+        return (True, self.numberLetterToValue(l.type))
+
     def fraction(self,t):
         (v,) = t
         return v.type
@@ -94,6 +135,23 @@ class DurationTransformer(Transformer):
         (v,) = t
         self.last_unit = v.type
         return v.type
+
+    def number_letter(self, t):
+        total = 0
+        current_number = 0
+        for item in t:
+            (is_base, value) = item
+            if is_base:
+                current_number = current_number * value if current_number != 0 else value
+            else:
+                total = total + current_number
+                current_number = value
+        return total + current_number
+
+    def number(self, t):
+        (v,) = t
+        return v
+
     def interval_part(self,t):
         (v,u) = t
         delta = self.unitToValue(u)
@@ -133,7 +191,9 @@ tests = {
   "1h30": timedelta(hours=1, minutes=30),
   "4 mois, 3 semaines, 2 jours, 1 heure": timedelta(weeks=7*4 + 3, days=2, hours=1),
   "2h4mn5s": timedelta(hours=2,minutes=4,seconds=5),
-  "9 semaines et demi": timedelta(days=9*7 + 3.5)
+  "9 semaines et demi": timedelta(days=9*7 + 3.5),
+  "vingt quatre heures" : timedelta(hours=24),
+  "quatre vingt jours": timedelta(days=80)
 }
 for text, expected in tests.items():
   print(text, '=>', 'expected', expected, 'got', parser.parse(text))
